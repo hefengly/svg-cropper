@@ -7,7 +7,7 @@
          <Button :type="rectBtnType" shape="circle" icon="ios-crop-outline" @click="rectBtn"></Button>
       </div>
       <div id="imgContainer" @mousedown="rectStart" @mouseup="rectEnd" @mousemove="rectMove">
-        <img src="./../assets/huya.jpg" alt="" id="img" draggable="false">
+        <img src="./../assets/huya.jpg" alt="" id="img" draggable="false" ref="img">
         <!-- <div id="svgContainer" ref="svgContainer">
           <svg v-for="(item, index) in pathItems" :key="index" v-if="item.path">
             <path :d="item.path"></path>
@@ -90,15 +90,20 @@ export default {
       window.removeEventListener('mouseup', this.rectEnd)
     },
     rectMove: function (e) {
+      // 必须是鼠标按下去才可以执行这个函数
       if (!this.isMouseDown) {
         return
       }
+      // 获取图片容器的宽高
+      let imgWidth = this.$refs.img.clientWidth
+      let imgHeight = this.$refs.img.clientHeight
       // 根据距离给矩形裁剪框设宽高，这里的位置要根据情况计算
       let startRect = this.rectItems[this.rectItems.length - 1]
       let x = startRect.x
       let y = startRect.y
       let width = e.x - startRect.startX
       let height = e.y - startRect.startY
+      // svg 反转拉伸时，更换顶点和其他的位置
       if (width < 0) {
         width = startRect.startX - e.x
         x = e.x - this.imgContainerL
@@ -106,6 +111,22 @@ export default {
       if (height < 0) {
         height = startRect.startY - e.y
         y = e.y - this.imgContainerT
+      }
+      // 若超出裁剪框，做截断处理，这里是顶点超出的处理
+      if (e.x < this.imgContainerL) {
+        width = startRect.width
+        x = 0
+      }
+      if (e.y < this.imgContainerT) {
+        height = startRect.height
+        y = 0
+      }
+      // 若超出裁剪框，做截断处理，这里是边框超出的处理
+      if (x + width > imgWidth) {
+        width = startRect.width
+      }
+      if (y + height > imgHeight) {
+        height = startRect.height
       }
       let rectItem = {...startRect, x: x, y: y, width: width, height: height}
       Vue.set(this.rectItems, this.rectItems.length - 1, rectItem)
@@ -130,6 +151,13 @@ export default {
 }
 #img {
   width: 100%;
+  /* 使图片不可选 */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 #operation {
   /* border: 1px dashed pink; */
