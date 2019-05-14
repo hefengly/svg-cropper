@@ -14,9 +14,15 @@
             <circle :cx="item.circle.cx" :cy="item.circle.cy" r="4" fill="green"/>
           </svg>
         </div> -->
-        <div id="rectContainer">
+        <div id="rectContainer" draggable="false">
           <svg>
-            <rect  v-for="(item, index) in rectItems" :key="index" :x="item.x" :y="item.y" :width="item.width" :height="item.height"></rect>
+            <svg v-for="(item, index) in rectItems" :key="index" class="svg">
+              <rect :x="item.x" :y="item.y" :width="item.width" :height="item.height"></rect>
+              <rect :x="getX('left-up', item.x)" :y="getY('left-up', item.y)" width="7" height="7" style='fill:rgb(32, 231, 32)' class="left-up"></rect>
+              <rect :x="getX('left-down', item.x)" :y="getY('left-down', item.y, item.height)" width="7" height="7" style='fill:rgb(32, 231, 32)' class="left-down"></rect>
+              <rect :x="getX('right-up', item.x, item.width)" :y="getY('right-up', item.y, item.height)" width="7" height="7" style='fill:rgb(32, 231, 32)' class="right-up"></rect>
+              <rect :x="getX('right-down', item.x, item.width)" :y="getY('right-down', item.y, item.height)" width="7" height="7" style='fill:rgb(32, 231, 32)' class="right-down"></rect>
+            </svg>
           </svg>
         </div>
       </div>
@@ -43,7 +49,8 @@ export default {
       rectDragSX: 0, // 矩形框拖拽的起始x
       rectDragSY: 0, // 矩形框拖拽的起始y
       isRectDrag: false, // 是否为矩形拖拽，用来判断矩形拖拽的移动
-      dragTarget: {} // 保存拖拽中的元素
+      dragTarget: {}, // 保存拖拽中的元素
+      dragRectItem: {} // 正在操作的rect对象
     }
   },
   mounted () {
@@ -78,8 +85,6 @@ export default {
       if (this.rectBtnType === 'default') {
         // 如果是已有的矩形框，做拖拽处理
         if (e.target.nodeName === 'rect') {
-          this.isRectDrag = true
-          this.dragTarget = e.target
           this.rectDragS(e)
         }
         return false
@@ -154,6 +159,8 @@ export default {
       console.log('我点击啦')
     },
     rectDragS: function (e) {
+      this.isRectDrag = true
+      this.dragTarget = e.target
       console.log('我开始拖拽啦')
       this.rectDragSX = e.x
       this.rectDragSY = e.y
@@ -161,6 +168,7 @@ export default {
     rectDragE: function (e) {
       this.isRectDrag = false
       console.log('我结束拖拽啦')
+      console.log(this.rectItems)
     },
     rectDraging: function (e) {
       let dragTarget = this.dragTarget
@@ -194,6 +202,56 @@ export default {
       this.rectDragSY = e.y
       dragTarget.setAttribute('x', x)
       dragTarget.setAttribute('y', y)
+    },
+    // 裁剪框四角的div x
+    getX: function (type, x, width) {
+      switch (type) {
+        case 'left-up': {
+          return x - 2
+        }
+        case 'left-down': {
+          return x - 2
+        }
+        case 'right-up': {
+          if (width) {
+            return x + width - 2
+          } else {
+            return x
+          }
+        }
+        case 'right-down': {
+          if (width) {
+            return x + width - 2
+          } else {
+            return x
+          }
+        }
+      }
+    },
+    // 裁剪框四角的div y
+    getY: function (type, y, height) {
+      switch (type) {
+        case 'left-up': {
+          return y - 2
+        }
+        case 'left-down': {
+          if (height) {
+            return y + height - 2
+          } else {
+            return y
+          }
+        }
+        case 'right-up': {
+          return y - 2
+        }
+        case 'right-down': {
+          if (height) {
+            return y + height - 2
+          } else {
+            return y
+          }
+        }
+      }
     }
   }
 }
@@ -250,9 +308,17 @@ svg {
 }
 rect {
   stroke: rgb(32, 231, 32);
-  stroke-width: 3;
+  stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
   fill: rgba(255, 255, 255, 0);
+  cursor: move;
+}
+.svg {
+  position: absolute;
+}
+.left-up {
+  left: -4px;
+  top: -4px;
 }
 </style>
