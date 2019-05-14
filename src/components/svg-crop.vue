@@ -7,7 +7,7 @@
          <Button :type="rectBtnType" shape="circle" icon="ios-crop-outline" @click="rectBtn"></Button>
       </div>
       <div id="imgContainer" @mousedown="rectStart" @mouseup="rectEnd" @mousemove="rectMove">
-        <img src="./../assets/huya.jpg" alt="" id="img" draggable="false" ref="img">
+        <img src="./../assets/huya.jpg" alt="" id="img" ref="img" draggable="false">
         <!-- <div id="svgContainer" ref="svgContainer">
           <svg v-for="(item, index) in pathItems" :key="index" v-if="item.path">
             <path :d="item.path"></path>
@@ -39,7 +39,11 @@ export default {
       rectItems: [], // 框选矩形的数组
       isMouseDown: false, // 鼠标是否按下
       imgContainerL: 72, // 图片容器距离浏览器左边的位置
-      imgContainerT: 66 // 图片容器距离浏览器上边的位置
+      imgContainerT: 66, // 图片容器距离浏览器上边的位置
+      rectDragSX: 0, // 矩形框拖拽的起始x
+      rectDragSY: 0, // 矩形框拖拽的起始y
+      isRectDrag: false, // 是否为矩形拖拽，用来判断矩形拖拽的移动
+      dragTarget: {} // 保存拖拽中的元素
     }
   },
   mounted () {
@@ -65,33 +69,48 @@ export default {
       this.rectBtnType = (this.rectBtnType === 'default') ? 'primary' : 'default'
     },
     rectStart: function (e) {
-      if (this.rectBtnType === 'default') {
-        return false
-      }
       this.isMouseDown = true
       // 鼠标在选框按下去的时候，在全局添加鼠标移动事件，因为裁剪进行中的时候，鼠标有可能移出选框外
       window.addEventListener('mousemove', this.rectMove)
       // 添加全局的鼠标弹起事件，因为框架结束的时刻，鼠标可能在款选图片外
       window.addEventListener('mouseup', this.rectEnd)
+      // 判断是否点击了裁剪按钮
+      if (this.rectBtnType === 'default') {
+        // 如果是已有的矩形框，做拖拽处理
+        if (e.target.nodeName === 'rect') {
+          this.isRectDrag = true
+          this.dragTarget = e.target
+          this.rectDragS(e)
+        }
+        return false
+      }
       // 添加一个rect, 这里的位置要根据情况计算, x,y为rect的顶点，startX, startY为rect开始的点，因为计算时x,y可能会改变
       let rect = {x: e.x - this.imgContainerL, y: e.y - this.imgContainerT, startX: e.x, startY: e.y}
       this.rectItems.push(rect)
-      console.log(this.rectItems)
     },
     rectEnd: function (e) {
-      if (this.rectBtnType === 'default') {
-        return false
-      }
-      this.isMouseDown = false
-      console.log('我弹起啦')
-      this.rectBtnType = 'default'
       // 裁剪后，取消那两个全局事件，避免性能消耗
       window.removeEventListener('mousemove', this.rectMove)
       window.removeEventListener('mouseup', this.rectEnd)
+      this.isMouseDown = false
+      if (this.rectBtnType === 'default') {
+      // 如果是已有的矩形框，做拖拽处理
+        if (e.target.nodeName === 'rect') {
+          this.rectDragE(e)
+        }
+        return false
+      }
+      console.log('我弹起啦')
+      this.rectBtnType = 'default'
     },
     rectMove: function (e) {
       // 必须是鼠标按下去才可以执行这个函数
       if (!this.isMouseDown) {
+        return
+      } else if (this.isRectDrag && this.rectBtnType === 'default') {
+        this.rectDraging(e)
+        return
+      } else if (this.rectBtnType === 'default') {
         return
       }
       // 获取图片容器的宽高
@@ -130,6 +149,51 @@ export default {
       }
       let rectItem = {...startRect, x: x, y: y, width: width, height: height}
       Vue.set(this.rectItems, this.rectItems.length - 1, rectItem)
+    },
+    rectClick: function () {
+      console.log('我点击啦')
+    },
+    rectDragS: function (e) {
+      console.log('我开始拖拽啦')
+      this.rectDragSX = e.x
+      this.rectDragSY = e.y
+    },
+    rectDragE: function (e) {
+      this.isRectDrag = false
+      console.log('我结束拖拽啦')
+    },
+    rectDraging: function (e) {
+      let dragTarget = this.dragTarget
+      // 得到原本的顶点位置
+      let oldX = Number(dragTarget.getAttribute('x'))
+      let oldY = Number(dragTarget.getAttribute('y'))
+      let oldWidth = Number(dragTarget.getAttribute('width'))
+      let oldHeight = Number(dragTarget.getAttribute('height'))
+      // 构造新的x,y
+      let x = oldX + e.x - this.rectDragSX
+      let y = oldY + e.y - this.rectDragSY
+      // 获取图片容器的宽高
+      let imgWidth = this.$refs.img.clientWidth
+      let imgHeight = this.$refs.img.clientHeight
+      // 做溢出判断，这里是考虑顶点
+      if (x < 0) {
+        x = oldX
+      }
+      if (y < 0) {
+        y = oldY
+      }
+      // 做溢出处理，这里是考虑边框
+      if (x + oldWidth > imgWidth) {
+        x = oldX
+      }
+      if (y + oldHeight > imgHeight) {
+        y = oldY
+      }
+      // 重置拖拽开始的位置
+      this.rectDragSX = e.x
+      this.rectDragSY = e.y
+      dragTarget.setAttribute('x', x)
+      dragTarget.setAttribute('y', y)
     }
   }
 }
@@ -183,5 +247,12 @@ svg {
   fill: none;
   width: 100%;
   height: 100%;
+}
+rect {
+  stroke: rgb(32, 231, 32);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: rgba(255, 255, 255, 0);
 }
 </style>
